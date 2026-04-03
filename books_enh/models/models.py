@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from typing import Optional
-from sqlmodel import Field, SQLModel, Relationship
+from sqlmodel import Field, SQLModel
 
 
 class Book(SQLModel, table=True):
