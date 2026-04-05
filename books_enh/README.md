@@ -17,14 +17,14 @@
 **Library Management API** is a production-ready REST API built with **FastAPI** that manages a library system. It allows users to create, retrieve, update, and delete books with features like advanced filtering, inventory management, and custom exception handling.
 
 ### Key Features
-- ✅ Complete CRUD operations for books
-- ✅ Advanced search and filtering (by title, author, genre)
-- ✅ Inventory tracking (total copies vs available copies)
-- ✅ Custom exception handling with semantic HTTP status codes
-- ✅ Data validation using Pydantic v2
-- ✅ PostgreSQL/SQLite database support via SQLModel
-- ✅ Automatic interactive API documentation
-- ✅ Middleware for request logging
+- Complete CRUD operations for books
+- Advanced search and filtering (by title, author, genre)
+- Inventory tracking (total copies vs available copies)
+- Custom exception handling with semantic HTTP status codes
+- Data validation using Pydantic v2
+- PostgreSQL/SQLite database support via SQLModel
+- Automatic interactive API documentation
+- Middleware for request logging
 
 ### Tech Stack
 | Component         | Technology                       |
@@ -32,7 +32,7 @@
 | Framework         | FastAPI                          |
 | Web Server        | Uvicorn                          |
 | ORM               | SQLModel (SQLAlchemy + Pydantic) |
-| Database          | PostgreSQL / SQLite              |
+| Database          | PostgreSQL with Supabase         |
 | Validation        | Pydantic v2                      |
 | Config Management | Pydantic Settings                |
 
@@ -222,22 +222,6 @@ def get_book(book_id: int):
     return book
 ```
 
-#### 10. **Exception Handlers**
-
-Custom handlers for application exceptions:
-
-```python
-from fastapi import FastAPI
-from fastapi.responses import JSONResponse
-
-@app.exception_handler(BookAlreadyExistsException)
-async def book_exists_handler(request, exc):
-    return JSONResponse(
-        status_code=status.HTTP_409_CONFLICT,
-        content={"detail": exc.message}
-    )
-```
-
 #### 11. **Middleware**
 
 Functions that process all requests/responses:
@@ -310,6 +294,9 @@ app.add_middleware(
 ## Project Architecture
 
 ### Directory Structure
+## Project Architecture
+
+### Directory Structure
 
 ```
 books_enh/
@@ -320,13 +307,29 @@ books_enh/
 │   ├── __init__.py
 │   ├── config.py           # Configuration management
 │   └── exceptions.py       # Custom exception classes
+├── main.py                  # Application entry point
+├── requirements.txt         # Package dependencies
+├── .env                     # Environment variables
+├── core/
+│   ├── __init__.py
+│   ├── config.py           # Configuration management
+│   └── exceptions.py       # Custom exception classes
 ├── database/
+│   ├── __init__.py
+│   └── db.py               # Database engine & session
 │   ├── __init__.py
 │   └── db.py               # Database engine & session
 ├── models/
 │   ├── __init__.py
 │   └── models.py           # SQLModel ORM definitions
+│   ├── __init__.py
+│   └── models.py           # SQLModel ORM definitions
 ├── schemas/
+│   ├── __init__.py
+│   └── schemas.py          # Pydantic request/response models
+├── services/
+│   ├── __init__.py
+│   └── book_service.py     # Business logic layer
 │   ├── __init__.py
 │   └── schemas.py          # Pydantic request/response models
 ├── services/
@@ -349,26 +352,26 @@ books_enh/
      │  - Route handlers          │
      │  - Request validation      │
      │  - Exception catching      │
-     └──────────────┬──────────────┘
+     └──────────────┬─────────────┘
                    │
      ┌─────────────▼──────────────┐
      │   Services (book_service)  │
      │  - Business logic          │
      │  - Data operations         │
      │  - Custom exceptions       │
-     └──────────────┬──────────────┘
+     └──────────────┬─────────────┘
                    │
      ┌─────────────▼──────────────┐
      │    Models (ORM Layer)      │
      │  - Database tables         │
      │  - Relationships           │
-     └──────────────┬──────────────┘
+     └──────────────┬─────────────┘
                    │
      ┌─────────────▼──────────────┐
      │   Database (SQLModel)      │
      │  - SQL queries             │
      │  - Transactions            │
-     └─────────────────────────────┘
+     └────────────────────────────┘
 ```
 
 ### Data Flow Example
@@ -396,7 +399,6 @@ Response: {detail: "ISBN already exists"}
 ### Prerequisites
 - Python 3.8+
 - pip or uv package manager
-- PostgreSQL (or use SQLite)
 
 ### Installation Steps
 
@@ -415,9 +417,6 @@ pip install -r requirements.txt
 
 3. **Environment configuration:**
 ```bash
-# Copy example env
-cp .env.example .env
-
 # Edit .env with your database credentials
 # DATABASE_URL=postgresql://user:password@localhost/dbname
 ```
@@ -429,7 +428,6 @@ uvicorn main:app --reload
 
 5. **Access API docs:**
 - Swagger UI: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
 - OpenAPI Schema: http://localhost:8000/openapi.json
 
 ---
@@ -577,11 +575,10 @@ def _get_book(book_id: int, service: BookService) -> Book:
 
 
 ### Benefits of Custom Exceptions
-✅ Semantic error handling - Each exception type has specific meaning
-✅ Centralized error mapping - Exception handlers in one place
-✅ Type safety - Catch specific exceptions, not generic ones
-✅ Cleaner routers - Less try-catch boilerplate
-✅ Better debugging - Clear exception names and messages
+Semantic error handling - Each exception type has specific meaning
+Centralized error mapping - Exception handlers in one place
+Type safety - Catch specific exceptions, not generic ones
+Better debugging - Clear exception names and messages
 
 ---
 
@@ -655,24 +652,6 @@ curl "http://localhost:8000/books/?search=python&genre=programming&available_onl
         "created_at": "2024-04-05T11:00:00Z"
     }
 ]
-```
-
-### Example 4: Invalid Update
-
-**Request:**
-```bash
-curl -X PATCH http://localhost:8000/books/1 \
-  -H "Content-Type: application/json" \
-  -d '{"total_copies": 2}'
-```
-
-If 3 copies are currently on loan:
-
-**Response (400 Bad Request):**
-```json
-{
-    "detail": "Cannot reduce total_copies below the number currently on loan"
-}
 ```
 
 ---
@@ -776,14 +755,14 @@ logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
 
 This project demonstrates FastAPI best practices:
 
-✅ **Type-safe** - Full type hints for validation and docs
-✅ **Layered architecture** - Separation of concerns (routers → services → models)
-✅ **Exception handling** - Custom exceptions with semantic mapping
-✅ **Data validation** - Pydantic schemas with validators
-✅ **ORM usage** - SQLModel for database operations
-✅ **Dependency injection** - Reusable service components
-✅ **Auto documentation** - Swagger UI & OpenAPI
-✅ **Middleware support** - Request logging and CORS
+**Type-safe** - Full type hints for validation and docs \
+**Layered architecture** - Separation of concerns (routers → services → models) \
+**Exception handling** - Custom exceptions with semantic mapping \ 
+**Data validation** - Pydantic schemas with validators \
+**ORM usage** - SQLModel for database operations \
+**Dependency injection** - Reusable service components \ 
+**Auto documentation** - Swagger UI & OpenAPI \
+**Middleware support** - Request logging and CORS \  
 
 For more information:
 - [FastAPI Documentation](https://fastapi.tiangolo.com/)
