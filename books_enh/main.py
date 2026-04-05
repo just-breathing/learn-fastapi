@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import time
 import logging
 
-from database.db import create_db_and_tables
+from database.db import verify_connection
 from routers import books
 
 logging.basicConfig(level=logging.INFO)
@@ -13,9 +13,13 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("Starting up — creating database tables...")
-    create_db_and_tables()
-    logger.info("Database ready.")
+    logger.info("Starting up")
+    try:
+        verify_connection()
+        logger.info("Supabase connection OK.")
+    except Exception as e:
+        logger.error("Could not connect to Supabase: %s", e)
+        raise
     yield
     logger.info("Shutting down.")
 
@@ -24,9 +28,9 @@ app = FastAPI(
     title="Library Management System",
     description=(
         "A REST API for managing a library"
-        "Built with FastAPI + SQLModel + SQLite."
+        "Built with FastAPI + Supabase"
     ),
-    version="1.0.0",
+    version="1.1.0",
     lifespan=lifespan,
 )
 

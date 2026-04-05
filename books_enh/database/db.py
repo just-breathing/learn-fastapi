@@ -1,18 +1,26 @@
-from sqlmodel import SQLModel, create_engine, Session
-
-DATABASE_URL = "sqlite:///./library.db"
-
+import logging
+ 
+from sqlalchemy.pool import NullPool
+from sqlmodel import SQLModel, Session, create_engine
+ 
+from core.config import settings
+ 
+logger = logging.getLogger(__name__)
+ 
 engine = create_engine(
-    DATABASE_URL,
-    connect_args={"check_same_thread": False},
-    echo=True,
+    settings.DATABASE_URL,
+    echo=settings.DEBUG,
+    poolclass=NullPool,           # Supabase manages pooling server-side
+    connect_args={
+        "options": "-c statement_timeout=30000",  # 30s query timeout
+    },
 )
 
-
-def create_db_and_tables():
-    SQLModel.metadata.create_all(engine)
-
-
+def verify_connection() -> None:
+    from sqlalchemy import text
+    with engine.connect() as conn:
+        conn.execute(text("SELECT 1"))
+ 
 def get_session():
     with Session(engine) as session:
         yield session
