@@ -16,9 +16,5 @@ class BookNotFoundException(LibraryException) :
 
 class DuplicateISBNException(LibraryException):
     status_code = status.HTTP_409_CONFLICT
-    
-    def __init__(self, detail):
-        super().__init__(
-            detail=detail
-        )
+    detail = "Book with ISBN already exists"
 

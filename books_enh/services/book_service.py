@@ -44,7 +44,7 @@ class BookService:
 
     def create(self, data: BookCreate) -> Book:
         if self.get_by_isbn(data.isbn):
-            raise DuplicateISBNException(f"Book with ISBN {data.isbn} already exists")
+            raise DuplicateISBNException()
 
         book = Book(
             **data.model_dump(),
