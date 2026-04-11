@@ -4,14 +4,17 @@ from sqlmodel import Session, select, func
 from models.models import Book
 from schemas.schemas import BookCreate, BookUpdate
 from core.exceptions import DuplicateISBNException
+from core.cache import cache, clear_all_cache
 
 class BookService:
     def __init__(self, session: Session):
         self.session = session
 
+    @cache(ttl_seconds=300000)
     def get_by_id(self, book_id: int) -> Optional[Book]:
         return self.session.get(Book, book_id)
 
+    @cache(ttl_seconds=300)
     def get_by_isbn(self, isbn: str) -> Optional[Book]:
         return self.session.exec(
             select(Book).where(Book.isbn == isbn)
@@ -53,6 +56,9 @@ class BookService:
         self.session.add(book)
         self.session.commit()
         self.session.refresh(book)
+        
+        self._clear_caches()
+        
         return book
 
     def update(self, book: Book, data: BookUpdate) -> Book:
@@ -64,8 +70,17 @@ class BookService:
         self.session.add(book)
         self.session.commit()
         self.session.refresh(book)
+        
+        self._clear_caches()
+        
         return book
 
     def delete(self, book: Book) -> None:
         self.session.delete(book)
         self.session.commit()
+        
+        self._clear_caches()
+
+    def _clear_caches(self) -> None:
+        """Clear all caches after write operations."""
+        clear_all_cache()

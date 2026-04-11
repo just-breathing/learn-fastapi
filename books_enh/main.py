@@ -1,11 +1,16 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 import time
 import logging
 
 from database.db import verify_connection
 from routers import books
+
+from core.utils import char_streamer
+from fastapi_cache.backends.inmemory import InMemoryBackend
+from fastapi_cache import FastAPICache
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -14,6 +19,7 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting up")
+    FastAPICache.init(InMemoryBackend())
     try:
         verify_connection()
         logger.info("Supabase connection OK.")
@@ -71,3 +77,9 @@ def root():
 @app.get("/health", tags=["Health"])
 def health():
     return {"status": "ok"}
+
+@app.get("/stream")
+def stream_file():
+    file_path = "sample.txt"
+    return StreamingResponse(char_streamer(file_path), media_type="text/event-stream")
+
