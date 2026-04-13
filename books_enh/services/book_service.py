@@ -1,20 +1,27 @@
+import uuid
+
 from typing import Optional
 from sqlmodel import Session, select, func
 
-from models.models import Book
-from schemas.schemas import BookCreate, BookUpdate
-from core.exceptions import DuplicateISBNException
-from core.cache import cache, clear_all_cache
+from core.config import settings
+
+from schemas.book import BookCreate, BookFileResponse, BookResponse, BookUpdate
+from models.book import Book
+
+from core.exceptions import DuplicateISBNException, BookNotFoundException, BookFileNotFoundException
+from core.cache import book_cache, cached
+
+from services.storage import StorageService
 
 class BookService:
-    def __init__(self, session: Session):
+    def __init__(self, session: Session, storage: StorageService):
         self.session = session
+        self.storage = storage
 
-    @cache(ttl_seconds=300000)
+    @cached(cache=book_cache, key_arg="book_id")
     def get_by_id(self, book_id: int) -> Optional[Book]:
         return self.session.get(Book, book_id)
 
-    @cache(ttl_seconds=300)
     def get_by_isbn(self, isbn: str) -> Optional[Book]:
         return self.session.exec(
             select(Book).where(Book.isbn == isbn)
@@ -56,9 +63,6 @@ class BookService:
         self.session.add(book)
         self.session.commit()
         self.session.refresh(book)
-        
-        self._clear_caches()
-        
         return book
 
     def update(self, book: Book, data: BookUpdate) -> Book:
@@ -71,16 +75,76 @@ class BookService:
         self.session.commit()
         self.session.refresh(book)
         
-        self._clear_caches()
-        
+        book_cache.delete(book.id)
         return book
 
     def delete(self, book: Book) -> None:
         self.session.delete(book)
         self.session.commit()
         
-        self._clear_caches()
+        book_cache.delete(book.id)
 
-    def _clear_caches(self) -> None:
-        """Clear all caches after write operations."""
-        clear_all_cache()
+
+    def upload_file(
+        self,
+        book_id: int,
+        file_bytes: bytes,
+        extension: str,
+        content_type: str,
+    ) -> BookResponse:
+        book = self.get_by_id(book_id)
+        if not book:
+            raise BookNotFoundException
+
+        # remove file (if exist) before uploading
+        if book.file_path:
+            self.storage.delete(book.file_path)
+
+        # Collision Prevention
+        storage_path = f"{book_id}/{uuid.uuid4()}.{extension}"
+        self.storage.upload(storage_path, file_bytes, content_type)
+
+        book.file_path = storage_path
+        self.session.add(book)
+        self.session.commit()
+        self.session.refresh(book)
+
+        # Cache Invalidation
+        book_cache.delete(book_id)
+        return BookResponse.model_validate(book)
+
+    def get_download_url(self, book_id: int) -> BookFileResponse:
+        book = self.get_by_id(book_id)
+        if not book:
+            raise BookNotFoundException
+        if not book.file_path:
+            raise BookFileNotFoundException(
+                f"Book '{book.title}' has no file uploaded yet"
+            )
+
+        url = self.storage.get_presigned_url(book.file_path)
+        filename = book.file_path.rsplit("/", 1)[-1]
+
+        return BookFileResponse(
+            book_id=book_id,
+            filename=filename,
+            download_url=url,
+            expires_in_seconds=settings.STORAGE_PRESIGNED_URL_EXPIRY,
+        )
+
+    def delete_file(self, book_id: int) -> BookResponse:
+        book = self.get_by_id(book_id)
+        if not book:
+            raise BookNotFoundException
+        if not book.file_path:
+            raise BookFileNotFoundException(
+                f"Book '{book.title}' has no file to delete"
+            )
+
+        self.storage.delete(book.file_path)
+        book.file_path = None
+        self.session.add(book)
+        self.session.commit()
+        self.session.refresh(book)
+        book_cache.delete(book_id)
+        return BookResponse.model_validate(book)

@@ -53,6 +53,13 @@ class BookResponse(BaseModel):
     total_copies: int
     available_copies: int
     created_at: datetime
+    file_path: Optional[str]
 
     model_config = {"from_attributes": True}
 
+class BookFileResponse(BaseModel):
+    """Returned when requesting a download URL for a book's file."""
+    book_id: int
+    filename: str
+    download_url: str               # presigned URL
+    expires_in_seconds: int

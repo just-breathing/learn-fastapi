@@ -1,7 +1,7 @@
 import logging
  
 from sqlalchemy.pool import NullPool
-from sqlmodel import SQLModel, Session, create_engine
+from sqlmodel import Session, create_engine
  
 from core.config import settings
  
