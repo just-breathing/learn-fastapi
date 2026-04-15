@@ -149,3 +149,12 @@ class LLMConfigurationException(LibraryException):
 class UnsupportedLLMProviderException(LibraryException):
     status_code = status.HTTP_400_BAD_REQUEST
     detail = "Unsupported LLM provider"
+
+
+class ConversationNotFoundException(LibraryException):
+    status_code = status.HTTP_404_NOT_FOUND
+    detail = "Conversation not found"
+
+class UnauthorizedConversationAccessException(LibraryException):
+    status_code = status.HTTP_403_FORBIDDEN
+    detail = "You do not have access to this conversation"

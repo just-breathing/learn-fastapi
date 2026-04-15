@@ -6,7 +6,7 @@ import time
 import logging
 
 from database.db import verify_connection
-from routers import books, member, loan, chat
+from routers import books, member, loan, chat, conversation
 
 from core.utils import char_streamer
 from fastapi_cache.backends.inmemory import InMemoryBackend
@@ -67,6 +67,7 @@ app.include_router(books.router)
 app.include_router(member.router)
 app.include_router(loan.router)
 app.include_router(chat.router)
+app.include_router(conversation.router)
 
 @app.get("/", tags=["Health"])
 def root():

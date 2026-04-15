@@ -27,6 +27,11 @@ class AppSettings(BaseSettings):
     LLM_MAX_RETRIES: int = 3
     LLM_REQUEST_TIMEOUT: int = 60
 
+    # Conversation Context Settings
+    CONTEXT_WINDOW_SIZE: int = 20  # Number of recent messages to keep
+    SUMMARIZATION_THRESHOLD: int = 15  # Summarize after every N messages
+    SUMMARY_MODEL: str = "openai/gpt-4o-mini"  # Model for summarization
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
