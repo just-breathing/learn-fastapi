@@ -43,7 +43,7 @@ class LangChainLLMProvider:
             return self._model.invoke(lc_msgs)
         except Exception as exc:
             _raise_normalised(exc)
-            raise  # This line is unreachable but satisfies type checker
+            
 
     async def ainvoke(self, messages: list[ChatMessage]) -> AIMessage:
         lc_msgs = _to_langchain_messages(messages)
@@ -51,7 +51,7 @@ class LangChainLLMProvider:
             return await self._model.ainvoke(lc_msgs)
         except Exception as exc:
             _raise_normalised(exc)
-            raise  # This line is unreachable but satisfies type checker
+            
 
     async def astream(self, messages: list[ChatMessage]) -> AsyncIterator[str]:
         lc_msgs = _to_langchain_messages(messages)
