@@ -5,9 +5,9 @@ from sqlmodel import SQLModel, Field, Relationship, Column, JSON
 
 class Conversation(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="member.id", index=True)
+    member_id: int = Field(foreign_key="member.id", index=True)
     title: str = Field(max_length=255)
-    metadata: Optional[dict] = Field(default=None, sa_column=Column(JSON))
+    conversation_metadata: Optional[dict] = Field(default=None, sa_column=Column(JSON))
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc)
     )
@@ -26,7 +26,7 @@ class Message(SQLModel, table=True):
     model_used: Optional[str] = Field(default=None, max_length=100)
     provider_used: Optional[str] = Field(default=None, max_length=50)
     token_usage: Optional[dict] = Field(default=None, sa_column=Column(JSON))
-    metadata: Optional[dict] = Field(default=None, sa_column=Column(JSON))
+    message_metadata: Optional[dict] = Field(default=None, sa_column=Column(JSON))
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc)
     )

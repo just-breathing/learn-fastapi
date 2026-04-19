@@ -4,14 +4,14 @@
 -- Create conversations table
 CREATE TABLE IF NOT EXISTS conversation (
     id SERIAL PRIMARY KEY,
-    user_id INTEGER NOT NULL REFERENCES member(id) ON DELETE CASCADE,
+    member_id INTEGER NOT NULL REFERENCES member(id) ON DELETE CASCADE,
     title VARCHAR(255) NOT NULL,
     metadata JSONB DEFAULT '{}',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX idx_conversation_user_id ON conversation(user_id);
+CREATE INDEX idx_conversation_member_id ON conversation(member_id);
 CREATE INDEX idx_conversation_updated_at ON conversation(updated_at DESC);
 
 -- Create messages table

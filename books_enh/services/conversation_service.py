@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from typing import Optional
-from sqlmodel import Session, select, func
+from sqlmodel import Session, select, func, desc, asc
 from models.conversation import Conversation, Message, ConversationSummary
 from core.exceptions import ConversationNotFoundException, UnauthorizedConversationAccessException
 from fastapi import status
@@ -11,33 +11,33 @@ class ConversationService:
         self.session = session
 
     def create_conversation(
-        self, user_id: int, title: str, metadata: Optional[dict] = None
+        self, member_id: int, title: str, metadata: Optional[dict] = None
     ) -> Conversation:
         conversation = Conversation(
-            user_id=user_id, title=title, metadata=metadata or {}
+            member_id=member_id, title=title, conversation_metadata=metadata or {}
         )
         self.session.add(conversation)
         self.session.commit()
         self.session.refresh(conversation)
         return conversation
 
-    def get_conversation(self, conversation_id: int, user_id: int) -> Conversation:
+    def get_conversation(self, conversation_id: int, member_id: int) -> Conversation:
         conversation = self.session.get(Conversation, conversation_id)
         if not conversation:
             raise ConversationNotFoundException
 
-        if conversation.user_id != user_id:
+        if conversation.member_id != member_id:
             raise UnauthorizedConversationAccessException
 
         return conversation
 
     def list_conversations(
-        self, user_id: int, limit: int = 50, offset: int = 0
+        self, member_id: int, limit: int = 50, offset: int = 0
     ) -> list[Conversation]:
         statement = (
             select(Conversation)
-            .where(Conversation.user_id == user_id)
-            .order_by(Conversation.updated_at.desc())
+            .where(Conversation.member_id == member_id)
+            .order_by(desc(Conversation.updated_at))
             .limit(limit)
             .offset(offset)
         )
@@ -60,7 +60,7 @@ class ConversationService:
             model_used=model_used,
             provider_used=provider_used,
             token_usage=token_usage,
-            metadata=metadata or {},
+            message_metadata=metadata or {},
         )
         self.session.add(message)
 
@@ -78,7 +78,7 @@ class ConversationService:
         statement = (
             select(Message)
             .where(Message.conversation_id == conversation_id)
-            .order_by(Message.created_at.asc())
+            .order_by(asc(Message.created_at))
             .offset(offset)
         )
         if limit:
@@ -86,8 +86,10 @@ class ConversationService:
 
         return list(self.session.exec(statement).all())
 
-    def count_messages(self, conversation_id: int) -> int:
-        statement = select(func.count(Message.id)).where(
+    def count_messages(self, conversation_id: int | None) -> int:
+        if conversation_id is None:
+            return 0
+        statement = select(func.count()).where(
             Message.conversation_id == conversation_id
         )
         return self.session.exec(statement).one()
@@ -98,7 +100,7 @@ class ConversationService:
         statement = (
             select(ConversationSummary)
             .where(ConversationSummary.conversation_id == conversation_id)
-            .order_by(ConversationSummary.created_at.desc())
+            .order_by(desc(ConversationSummary.created_at))
             .limit(1)
         )
         return self.session.exec(statement).first()
@@ -121,7 +123,7 @@ class ConversationService:
         self.session.refresh(summary)
         return summary
 
-    def delete_conversation(self, conversation_id: int, user_id: int) -> None:
-        conversation = self.get_conversation(conversation_id, user_id)
+    def delete_conversation(self, conversation_id: int, member_id: int) -> None:
+        conversation = self.get_conversation(conversation_id, member_id)
         self.session.delete(conversation)
         self.session.commit()

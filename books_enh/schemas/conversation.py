@@ -5,14 +5,14 @@ from pydantic import BaseModel, Field
 
 class ConversationCreate(BaseModel):
     title: str = Field(..., min_length=1, max_length=255)
-    metadata: Optional[dict] = None
+    conversation_metadata: Optional[dict] = None
 
 
 class ConversationResponse(BaseModel):
-    id: int
-    user_id: int
+    id: int | None
+    member_id: int
     title: str
-    metadata: Optional[dict] = None
+    conversation_metadata: Optional[dict] = None
     created_at: datetime
     updated_at: datetime
     message_count: int = 0
@@ -27,7 +27,7 @@ class MessageCreate(BaseModel):
 
 
 class MessageResponse(BaseModel):
-    id: int
+    id: int | None
     conversation_id: int
     role: str
     content: str

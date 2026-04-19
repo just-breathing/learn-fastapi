@@ -10,7 +10,7 @@ from schemas.conversation import (
 )
 from services.conversation_service import ConversationService
 from services.context_manager import ContextManager
-from services.chat_service import build_chat_service
+from services.chat_service import ChatService, build_chat_service
 from schemas.chat import ChatRequest
 
 router = APIRouter(prefix="/conversations", tags=["Conversations"])
@@ -32,20 +32,20 @@ def get_context_manager(session: Session = Depends(get_session)) -> ContextManag
 )
 def create_conversation(
     request: ConversationCreate,
-    user_id: int = 1,  # TODO: Replace with actual auth
+    member_id: int = 1,  # TODO: Replace with actual auth
     service: ConversationService = Depends(get_conversation_service),
 ) -> ConversationResponse:
     """
     Create a new conversation thread for a user.
     """
     conversation = service.create_conversation(
-        user_id=user_id, title=request.title, metadata=request.metadata
+        member_id=member_id, title=request.title, metadata=request.conversation_metadata
     )
     return ConversationResponse(
         id=conversation.id,
-        user_id=conversation.user_id,
+        member_id=conversation.member_id,
         title=conversation.title,
-        metadata=conversation.metadata,
+        conversation_metadata=conversation.conversation_metadata,
         created_at=conversation.created_at,
         updated_at=conversation.updated_at,
         message_count=0,
@@ -58,7 +58,7 @@ def create_conversation(
     summary="List all conversations for a user",
 )
 def list_conversations(
-    user_id: int = 1,  # TODO: Replace with actual auth
+    member_id: int = 1,  # TODO: Replace with actual auth
     limit: int = 50,
     offset: int = 0,
     service: ConversationService = Depends(get_conversation_service),
@@ -66,13 +66,13 @@ def list_conversations(
     """
     Retrieve all conversations for the authenticated user.
     """
-    conversations = service.list_conversations(user_id, limit, offset)
+    conversations = service.list_conversations(member_id, limit, offset)
     return [
         ConversationResponse(
             id=conv.id,
-            user_id=conv.user_id,
+            member_id=conv.member_id,
             title=conv.title,
-            metadata=conv.metadata,
+            conversation_metadata=conv.conversation_metadata,
             created_at=conv.created_at,
             updated_at=conv.updated_at,
             message_count=service.count_messages(conv.id),
@@ -88,22 +88,22 @@ def list_conversations(
 )
 def get_conversation_history(
     conversation_id: int,
-    user_id: int = 1,  # TODO: Replace with actual auth
+    member_id: int = 1,  # TODO: Replace with actual auth
     service: ConversationService = Depends(get_conversation_service),
 ) -> ConversationHistoryResponse:
     """
     Retrieve full conversation history including all messages.
     """
-    conversation = service.get_conversation(conversation_id, user_id)
+    conversation = service.get_conversation(conversation_id, member_id)
     messages = service.get_messages(conversation_id)
     summary = service.get_latest_summary(conversation_id)
 
     return ConversationHistoryResponse(
         conversation=ConversationResponse(
             id=conversation.id,
-            user_id=conversation.user_id,
+            member_id=conversation.member_id,
             title=conversation.title,
-            metadata=conversation.metadata,
+            conversation_metadata=conversation.conversation_metadata,
             created_at=conversation.created_at,
             updated_at=conversation.updated_at,
             message_count=len(messages),
@@ -135,9 +135,10 @@ def get_conversation_history(
 async def send_message(
     conversation_id: int,
     request: MessageCreate,
-    user_id: int = 1,  # TODO: Replace with actual auth
+    member_id: int,
     service: ConversationService = Depends(get_conversation_service),
     context_mgr: ContextManager = Depends(get_context_manager),
+    chat_service: ChatService = Depends(build_chat_service)
 ) -> MessageResponse:
     """
     Send a message in an existing conversation and get LLM response.
@@ -149,7 +150,7 @@ async def send_message(
     4. Stores the assistant's response
     5. Auto-summarizes if threshold is reached
     """
-    service.get_conversation(conversation_id, user_id)
+    service.get_conversation(conversation_id, member_id)
 
     user_message = service.add_message(
         conversation_id=conversation_id, role="user", content=request.content
@@ -157,14 +158,11 @@ async def send_message(
 
     context = context_mgr.build_context(conversation_id)
 
-    chat_service = build_chat_service(
-        provider=request.provider,
-        model=request.model,
-        temperature=request.temperature,
-        max_tokens=request.max_tokens,
-    )
-
-    chat_request = ChatRequest(messages=context)
+    chat_request = ChatRequest(messages=context,
+                               provider=request.provider,
+                               model= request.model,
+                               temperature=request.temperature,
+                               max_tokens=request.max_tokens)
     response = await chat_service.acomplete(chat_request)
 
     assistant_message = service.add_message(
@@ -198,10 +196,10 @@ async def send_message(
 )
 def delete_conversation(
     conversation_id: int,
-    user_id: int = 1,  # TODO: Replace with actual auth
+    member_id: int = 1,  # TODO: Replace with actual auth
     service: ConversationService = Depends(get_conversation_service),
 ) -> None:
     """
     Delete a conversation and all its messages.
     """
-    service.delete_conversation(conversation_id, user_id)
+    service.delete_conversation(conversation_id, member_id)
