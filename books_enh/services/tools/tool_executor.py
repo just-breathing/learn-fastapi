@@ -224,7 +224,7 @@ class ToolExecutor:
                     overdue_details.append(
                         LateFeeCalculation(
                             loan_id=loan_resp.id,
-                            book_title=loan_resp.book_title,
+                            book_title=loan_resp.book.title,
                             days_overdue=days_overdue,
                             fee_amount=round(fee, 2)
                         )
@@ -272,11 +272,11 @@ class ToolExecutor:
                 success=True,
                 loan_id=loan_response.id,
                 book_id=loan_response.book_id,
-                book_title=loan_response.book_title,
+                book_title=loan_response.book.title,
                 member_id=loan_response.member_id,
-                borrowed_at=loan_response.borrow_date,
+                borrowed_at=loan_response.borrowed_at,
                 due_date=loan_response.due_date,
-                message=f"Successfully borrowed '{loan_response.book_title}' until {loan_response.due_date.isoformat()}"
+                message=f"Successfully borrowed '{loan_response.book.title}' until {loan_response.due_date.isoformat()}"
             )
             return response.model_dump_json()
             
